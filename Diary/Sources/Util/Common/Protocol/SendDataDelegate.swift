@@ -6,8 +6,8 @@
 //
 
 protocol SendDataDelegate: AnyObject {
-    func sendData<T>(
-        _ data: T,
+    func sendData(
+        manager: CoreDataProtocol,
         isExist: Bool
     )
 }

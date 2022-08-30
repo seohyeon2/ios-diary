@@ -6,9 +6,11 @@
 //
 
 import UIKit
+import CoreData
 
-final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
-    var content: DiaryContents?
+final class DetailDiaryViewController: UIViewController {
+    // var content: DiaryContents?
+    var manager: CoreDataProtocol = DiaryCoreDataManager()
     var isExist: Bool = false
     
     let textView: UITextView = {
@@ -57,8 +59,11 @@ final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
     }
     
     private func configureNavigationItemTitle() {
-        let time = content?.createdAt ?? Date().timeIntervalSince1970
-        let date = Date(timeIntervalSince1970: time)
+        var date = Date()
+        if let content = manager.content as? DiaryContents {
+            let time = content.createdAt
+            date = Date(timeIntervalSince1970: time)
+        }
         
         navigationItem.title = DateFormatter.localizedString(
             from: date,
@@ -108,7 +113,7 @@ final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
     }
     
     private func showActivityView() {
-        guard let content = self.content,
+        guard let content = manager.content as? DiaryContents,
               let title = content.title else {
             return
         }
@@ -140,15 +145,8 @@ final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
             title: "삭제",
             style: .destructive,
             handler: { _ in
-                guard let content = self.content else {
-                    return
-                }
-                
-                self.delete(content) { error in
-                    DispatchQueue.main.async {
-                        self.showErrorAlert(error: error)
-                    }
-                }
+                self.manager.type = .delete
+                self.manager.perform()
                 self.navigationController?.popViewController(animated: true)
             }))
         
@@ -181,12 +179,15 @@ final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
     }
     
     private func configureTextView() {
-        guard let title = content?.title,
-              let body = content?.body else {
-            return
+        guard let context = manager.context else { return }
+        manager.content = DiaryContents(context: context)
+        guard let content = manager.content as? DiaryContents else { return }
+        
+        if let title = content.title,
+           let body = content.body {
+            textView.text = title + "\n\n" + body
         }
         
-        textView.text = title + "\n\n" + body
         textView.contentOffset.y = 0
     }
     
@@ -226,31 +227,13 @@ final class DetailDiaryViewController: UIViewController, CoreDataProcessing {
     }
     
     @objc func saveDiaryContents() {
-        if textView.text.isEmpty == false && isExist == false {
-            create(content: getProcessedContent()) { error in
-                DispatchQueue.main.async {
-                    self.showErrorAlert(error: error)
-                }
-            }
-        } else if textView.text.isEmpty == false && isExist == true {
-            update(
-                entity: content ?? DiaryContents(),
-                content: getProcessedContent(),
-                errorHandler: { error in
-                    DispatchQueue.main.async {
-                        self.showErrorAlert(error: error)
-                    }
-                })
-        }
+        // 여기 수정
     }
 }
 
 extension DetailDiaryViewController: SendDataDelegate {
-    func sendData<T>(
-        _ data: T,
-        isExist: Bool
-    ) {
-        content = data as? DiaryContents
+    func sendData(manager: CoreDataProtocol, isExist: Bool) {
+        self.manager = manager
         self.isExist = isExist
     }
 }

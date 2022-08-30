@@ -6,7 +6,8 @@
 
 import UIKit
 
-final class DiaryListTableViewController: UIViewController, CoreDataProcessing {
+final class DiaryListTableViewController: UIViewController {
+    let manager = DiaryCoreDataManager()
     private enum Section {
         case main
     }
@@ -96,9 +97,13 @@ final class DiaryListTableViewController: UIViewController, CoreDataProcessing {
     }
     
     private func configureSnapshot() {
-        guard let context = context,
-              let diaryContents = try? context.fetch(DiaryContents.fetchRequest()) else {
-                  return
+//        guard let context = context,
+//              let diaryContents = try? context.fetch(DiaryContents.fetchRequest()) else {
+//                  return
+//        }
+        
+        guard let diaryContents = manager.readContext() as? [DiaryContents] else {
+            return
         }
 
         snapshot.deleteAllItems()
@@ -117,10 +122,8 @@ extension DiaryListTableViewController: UITableViewDelegate {
         let diaryContent = snapshot.itemIdentifiers[indexPath.item]
         weak var sendDataDelegate: (SendDataDelegate)? = detailDiaryViewController
         
-        sendDataDelegate?.sendData(
-            diaryContent,
-            isExist: true
-        )
+        manager.content = diaryContent
+        sendDataDelegate?.sendData(manager: manager, isExist: true)
         
         navigationController?.pushViewController(
             detailDiaryViewController,
@@ -138,11 +141,13 @@ extension DiaryListTableViewController: UITableViewDelegate {
         ) { [self] _, _, _ in
             let removableContent = self.snapshot.itemIdentifiers[indexPath.item]
             
-            self.delete(removableContent) { error in
-                DispatchQueue.main.async {
-                    self.showErrorAlert(error: error)
-                }
-            }
+//            self.delete(removableContent) { error in
+//                DispatchQueue.main.async {
+//                    self.showErrorAlert(error: error)
+//                }
+//            }
+            
+            self.manager.deleteContext(data: removableContent)
             self.snapshot.deleteItems([removableContent])
             self.dataSource?.apply(
                 snapshot,
